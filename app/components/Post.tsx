@@ -1,12 +1,35 @@
 import React from "react";
 import queryString from "query-string";
-import { fetchItem, fetchPosts, fetchComments } from "../utils/api";
+import { fetchItem, fetchPosts, fetchComments, IPost } from "../utils/api";
 import Loading from "./Loading";
 import PostMetaInfo from "./PostMetaInfo";
 import Title from "./Title";
 import Comment from "./Comment";
 
-function postReducer(state, action) {
+
+
+type PostActions = {
+  type: "fetch";
+} | {
+  type: "post";
+  post: IPost;
+} | {
+  type: "comments";
+  comments: IPost[];
+} | {
+  type: "error";
+  error: "string";
+}
+
+interface PostState {
+  loadingPost: boolean, 
+  loadingComments: boolean,
+  post: null | IPost;
+  comments: null | IPost[];
+  error: null | string;
+}
+
+function postReducer(state: PostState, action: PostActions): PostState {
   if (action.type === "fetch") {
     return {
       ...state,
@@ -37,7 +60,7 @@ function postReducer(state, action) {
   }
 }
 
-export default function Post({ location }) {
+export default function Post({ location }: { location: { search: string }}) {
   const { id } = queryString.parse(location.search);
   const [state, dispatch] = React.useReducer(postReducer, {
     post: null,
@@ -52,7 +75,7 @@ export default function Post({ location }) {
   React.useEffect(() => {
     dispatch({ type: "fetch" });
 
-    fetchItem(id)
+    fetchItem(id as string)
       .then((post) => {
         dispatch({ type: "post", post });
         return fetchComments(post.kids || []);
@@ -66,7 +89,7 @@ export default function Post({ location }) {
       );
   }, [id]);
 
-  if (error) {
+  if (error || !post) {
     return <p className="center-text error">{error}</p>;
   }
 
@@ -90,13 +113,13 @@ export default function Post({ location }) {
       )}
       {loadingComments === true ? (
         loadingPost === false && <Loading text="Fetching comments" />
-      ) : (
+      ) : comments ? (
         <React.Fragment>
           {comments.map((comment) => (
             <Comment key={comment.id} comment={comment} />
           ))}
         </React.Fragment>
-      )}
+      ): (<></>)}
     </React.Fragment>
   );
 }

@@ -1,11 +1,36 @@
 import React from "react";
 import queryString from "query-string";
-import { fetchUser, fetchPosts } from "../utils/api";
+import { fetchUser, fetchPosts, IPost, User as IUser } from "../utils/api";
 import Loading from "./Loading";
 import { formatDate } from "../utils/helpers";
 import PostsList from "./PostsList";
 
-function postReducer(state, action) {
+type PostActions =
+  | {
+      type: "fetch";
+    }
+  | {
+      type: "user";
+      user: IUser;
+    }
+  | {
+      type: "posts";
+      posts: IPost[];
+    }
+  | {
+      type: "error";
+      message: string;
+    };
+
+interface PostState {
+  loadingUser: boolean;
+  loadingPosts: boolean;
+  user: null | IUser;
+  posts: null | IPost[];
+  error: null | string;
+}
+
+function postReducer(state: PostState, action: PostActions): PostState {
   if (action.type === "fetch") {
     return {
       ...state,
@@ -37,7 +62,7 @@ function postReducer(state, action) {
   }
 }
 
-export default function User({ location }) {
+export default function User({ location }: { location: { search: string } }) {
   const { id } = queryString.parse(location.search);
 
   const [state, dispatch] = React.useReducer(postReducer, {
@@ -51,7 +76,7 @@ export default function User({ location }) {
   React.useEffect(() => {
     dispatch({ type: "fetch" });
 
-    fetchUser(id)
+    fetchUser(id as string)
       .then((user) => {
         dispatch({ type: "user", user });
         return fetchPosts(user.submitted.slice(0, 30));
@@ -62,7 +87,7 @@ export default function User({ location }) {
 
   const { user, posts, loadingUser, loadingPosts, error } = state;
 
-  if (error) {
+  if (error || !user) {
     return <p className="center-text error">{error}</p>;
   }
 
@@ -86,11 +111,13 @@ export default function User({ location }) {
       )}
       {loadingPosts === true ? (
         loadingUser === false && <Loading text="Fetching posts" />
-      ) : (
+      ) : posts ? (
         <React.Fragment>
           <h2>Posts</h2>
           <PostsList posts={posts} />
         </React.Fragment>
+      ) : (
+        <></>
       )}
     </React.Fragment>
   );
